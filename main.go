@@ -23,11 +23,7 @@ func init() {
 	recipes = make([]Recipe, 0)
 }
 
-func GetRecipesHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, recipes)
-}
-
-func CreateRecipeHandler(c *gin.Context) {
+func NewRecipeHandler(c *gin.Context) {
 	var recipe Recipe
 
 	if err := c.ShouldBindJSON(&recipe); err != nil {
@@ -46,7 +42,6 @@ func CreateRecipeHandler(c *gin.Context) {
 
 func main() {
 	router := gin.Default()
-	router.GET("/recipes", GetRecipesHandler)
-	router.POST("/recipes", CreateRecipeHandler)
+	router.POST("/recipes", NewRecipeHandler)
 	router.Run()
 }
