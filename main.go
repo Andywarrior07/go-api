@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -38,9 +39,15 @@ func init() {
 	}
 
 	collection := client.Database("recipesdb").Collection("recipes")
+
 	log.Println("Conntected to MongoDB")
 
-	recipesHandler = handlers.NewRecipesHandler(ctx, collection)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+		DB:   0,
+	})
+
+	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
 
 	// var listOfRecipes []interface{}
 	// for _, recipe := range recipes {
