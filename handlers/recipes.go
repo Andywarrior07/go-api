@@ -32,7 +32,6 @@ func NewRecipesHandler(ctx context.Context, collection *mongo.Collection, redisC
 
 func (handler *RecipesHandler) GetRecipesHandler(c *gin.Context) {
 	val, err := handler.redisClient.Get("recipes").Result()
-
 	recipes := make([]models.Recipe, 0)
 
 	if err == redis.Nil {
