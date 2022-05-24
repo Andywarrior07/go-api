@@ -24,6 +24,7 @@ func getMongoUri() string {
 	return os.Getenv("MONGO_URI")
 }
 
+var authHandler *handlers.AuthHandler
 var recipesHandler *handlers.RecipesHandler
 
 func init() {
@@ -43,11 +44,12 @@ func init() {
 	log.Println("Conntected to MongoDB")
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: "localhost:6380",
 		DB:   0,
 	})
 
 	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
+	authHandler = &handlers.AuthHandler{}
 
 	// var listOfRecipes []interface{}
 	// for _, recipe := range recipes {
@@ -64,10 +66,20 @@ func init() {
 
 func main() {
 	router := gin.Default()
+
 	router.GET("/recipes", recipesHandler.GetRecipesHandler)
-	router.GET("/recipes/:id", recipesHandler.GetRecipeByIdHandler)
-	router.POST("/recipes", recipesHandler.CreateRecipeHandler)
-	router.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
-	router.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
+
+	router.POST("/signin", authHandler.SignInHandler)
+	// router.POST("/refresh", authHandler.RefreshTokenHandler)
+
+	authorized := router.Group("/")
+	authorized.Use(authHandler.AuthMiddleware())
+	{
+		authorized.GET("/recipes/:id", recipesHandler.GetRecipeByIdHandler)
+		authorized.POST("/recipes", recipesHandler.CreateRecipeHandler)
+		authorized.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
+		authorized.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
+	}
+
 	router.Run()
 }
