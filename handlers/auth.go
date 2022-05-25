@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"crypto/sha256"
+	"fmt"
 	"go-api/models"
 	"log"
 	"net/http"
@@ -14,7 +14,20 @@ import (
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+
+	return string(bytes), err
+}
+
+func ValidatePassword(password string, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+
+	return err == nil
+}
 
 type AuthHandler struct {
 	collection *mongo.Collection
@@ -50,6 +63,7 @@ func getJwtSecret() string {
 
 func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	var user models.User
+	var currentUser models.User
 
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -59,21 +73,23 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 		return
 	}
 
-	h := sha256.New()
-
 	cur := handler.collection.FindOne(handler.ctx, bson.M{
 		"username": user.Username,
-		"password": string(h.Sum([]byte(user.Password))),
 	})
 
-	if user.Username != "admin" || user.Password != "password" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+	if cur.Err() != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password 1"})
+		return
+	}
 
+	cur.Decode(&currentUser)
+
+	if !ValidatePassword(user.Password, currentUser.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password 2"})
 		return
 	}
 
 	expirationTime := time.Now().Add(10 * time.Minute)
-
 	claims := &Claims{
 		Username: user.Username,
 		StandardClaims: jwt.StandardClaims{
@@ -96,6 +112,38 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, jwtOutput)
+}
+
+func (handler *AuthHandler) SignUpHandler(c *gin.Context) {
+	var user models.User
+
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	password, err := HashPassword(user.Password)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = handler.collection.InsertOne(handler.ctx, bson.M{
+		"username": user.Username,
+		"password": password,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while inserting a new user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, "User created")
 }
 
 // func (handler *AuthHandler) RefreshTokenHandler(c *gin.Context) {

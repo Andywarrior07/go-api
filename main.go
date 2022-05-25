@@ -39,7 +39,8 @@ func init() {
 		log.Fatal(err)
 	}
 
-	collection := client.Database("recipesdb").Collection("recipes")
+	collectionRecipes := client.Database("recipesdb").Collection("recipes")
+	collectionUsers := client.Database("recipesdb").Collection("users")
 
 	log.Println("Conntected to MongoDB")
 
@@ -48,9 +49,8 @@ func init() {
 		DB:   0,
 	})
 
-	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
-	authHandler = &handlers.AuthHandler{}
-
+	recipesHandler = handlers.NewRecipesHandler(ctx, collectionRecipes, redisClient)
+	authHandler = handlers.NewAuthHandler(ctx, collectionUsers)
 	// var listOfRecipes []interface{}
 	// for _, recipe := range recipes {
 	// 	recipe.ID = primitive.NewObjectID()
@@ -70,6 +70,7 @@ func main() {
 	router.GET("/recipes", recipesHandler.GetRecipesHandler)
 
 	router.POST("/signin", authHandler.SignInHandler)
+	router.POST("/signup", authHandler.SignUpHandler)
 	// router.POST("/refresh", authHandler.RefreshTokenHandler)
 
 	authorized := router.Group("/")
