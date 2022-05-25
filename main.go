@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/gin-contrib/sessions"
+	redisStore "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
@@ -65,12 +67,16 @@ func init() {
 }
 
 func main() {
+	store, _ := redisStore.NewStore(10, "tcp", "localhost:6380", "", []byte("token"))
 	router := gin.Default()
+
+	router.Use(sessions.Sessions("recipes-api", store))
 
 	router.GET("/recipes", recipesHandler.GetRecipesHandler)
 
 	router.POST("/signin", authHandler.SignInHandler)
 	router.POST("/signup", authHandler.SignUpHandler)
+	router.POST("/signout", authHandler.SignOutHandler)
 	// router.POST("/refresh", authHandler.RefreshTokenHandler)
 
 	authorized := router.Group("/")
